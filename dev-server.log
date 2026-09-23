@@ -1,0 +1,109 @@
+
+> falix-control-panel@1.0.0 dev
+> next dev -p 3000
+
+   ▲ Next.js 15.1.6
+   - Local:        http://localhost:3000
+   - Network:      http://192.168.1.105:3000
+
+ ✓ Starting...
+ ✓ Ready in 17s
+ ○ Compiling /src/middleware ...
+ ✓ Compiled /src/middleware in 3.9s (100 modules)
+ ⨯ Error: The edge runtime does not support Node.js 'path' module.
+Learn More: https://nextjs.org/docs/messages/node-module-in-edge-runtime
+    at path (src\middleware.ts:5:20)
+    at (middleware)/./src/middleware.ts (.next\server\src\middleware.js:883:1)
+    at __webpack_require__ (.next\server\edge-runtime-webpack.js:37:33)
+    at fn (.next\server\edge-runtime-webpack.js:273:21)
+    at (middleware)/./node_modules/next/dist/build/webpack/loaders/next-middleware-loader.js?absolutePagePath=C%3A%5CUsers%5CKhaja%20Mohideen%5CDownloads%5CThe%20Chuds%20Smp%5Csrc%5Cmiddleware.ts&page=%2Fsrc%2Fmiddleware&rootDir=C%3A%5CUsers%5CKhaja%20Mohideen%5CDownloads%5CThe%20Chuds%20Smp&matchers=&preferredRegion=&middlewareConfig=e30%3D! (.next\server\src\middleware.js:916:1)
+    at __webpack_require__ (.next\server\edge-runtime-webpack.js:37:33)
+    at __webpack_exec__ (.next\server\src\middleware.js:955:48)
+    at <unknown> (.next\server\src\middleware.js:956:37)
+  3 | import path from "path";
+  4 |
+> 5 | const CONFIG_FILE = path.join(process.cwd(), ".panel-config.json");
+    |                    ^
+  6 | const SESSION_COOKIE = "panel_session";
+  7 |
+  8 | function readSetupState(): { configured: boolean; seeded: boolean } {
+ ○ Compiling /_error ...
+ ✓ Compiled /_error in 12.8s (271 modules)
+ ⨯ Error: The edge runtime does not support Node.js 'path' module.
+Learn More: https://nextjs.org/docs/messages/node-module-in-edge-runtime
+    at path (src\middleware.ts:5:20)
+    at (middleware)/./src/middleware.ts (.next\server\src\middleware.js:883:1)
+    at __webpack_require__ (.next\server\edge-runtime-webpack.js:37:33)
+    at fn (.next\server\edge-runtime-webpack.js:273:21)
+    at (middleware)/./node_modules/next/dist/build/webpack/loaders/next-middleware-loader.js?absolutePagePath=C%3A%5CUsers%5CKhaja%20Mohideen%5CDownloads%5CThe%20Chuds%20Smp%5Csrc%5Cmiddleware.ts&page=%2Fsrc%2Fmiddleware&rootDir=C%3A%5CUsers%5CKhaja%20Mohideen%5CDownloads%5CThe%20Chuds%20Smp&matchers=&preferredRegion=&middlewareConfig=e30%3D! (.next\server\src\middleware.js:916:1)
+    at __webpack_require__ (.next\server\edge-runtime-webpack.js:37:33)
+    at __webpack_exec__ (.next\server\src\middleware.js:955:48)
+    at <unknown> (.next\server\src\middleware.js:956:37)
+  3 | import path from "path";
+  4 |
+> 5 | const CONFIG_FILE = path.join(process.cwd(), ".panel-config.json");
+    |                    ^
+  6 | const SESSION_COOKIE = "panel_session";
+  7 |
+  8 | function readSetupState(): { configured: boolean; seeded: boolean } {
+ ✓ Compiled in 641ms
+ ✓ Compiled in 3.7s (269 modules)
+ ✓ Compiled in 1364ms (269 modules)
+ ○ Compiling /setup ...
+ ✓ Compiled /setup in 43.5s (885 modules)
+ GET /setup 200 in 48126ms
+ ○ Compiling / ...
+ ✓ Compiled / in 10s (876 modules)
+ GET / 307 in 11211ms
+ ○ Compiling /api/setup ...
+ ✓ Compiled /api/setup in 2.3s (900 modules)
+ GET /api/setup 200 in 3347ms
+ GET / 307 in 1001ms
+ GET /setup 200 in 563ms
+ GET /setup 200 in 243ms
+ POST /api/setup 400 in 454ms
+ ✓ Compiled in 2.7s (401 modules)
+ GET /setup 200 in 1584ms
+ ✓ Compiled in 8.1s (401 modules)
+ GET /setup 200 in 1613ms
+ ○ Compiling /api/setup ...
+ ✓ Compiled /api/setup in 2.1s (427 modules)
+ GET /api/setup 200 in 3372ms
+ GET /setup 200 in 476ms
+ POST /api/setup 400 in 317ms
+[falix] GET /servers/99999 failed req=b7259433-79ef-4b20-9068-e3394a9c5e48
+ POST /api/setup 400 in 882ms
+ ○ Compiling /login ...
+ ✓ Compiled /login in 10.7s (907 modules)
+ GET /login 200 in 14574ms
+ ○ Compiling /api/auth/login ...
+ ✓ Compiled /api/auth/login in 2.5s (909 modules)
+[api] unhandled error: Error: No Supabase credentials configured
+    at pool (src\lib\db.ts:135:22)
+    at pool (src\lib\db.ts:159:9)
+    at recentFailures (src\lib\auth.ts:214:4)
+    at username (src\app\api\auth\login\route.ts:28:42)
+  133 |   if (pgPool) return pgPool;
+  134 |   const info = getDirectDbCandidates();
+> 135 |   if (!info.ok) throw new Error(info.reason);
+      |                      ^
+  136 |   const first = info.candidates[0];
+  137 |   pgPool = new Pool({
+  138 |     host: first.host,
+ POST /api/auth/login 500 in 3835ms
+ ✓ Compiled in 2.9s (432 modules)
+ ✓ Compiled in 2.9s (432 modules)
+ GET /setup 200 in 773ms
+ POST /api/auth/login 503 in 184ms
+ GET /setup 200 in 481ms
+ GET /setup 200 in 2842ms
+ ○ Compiling /_not-found ...
+ ✓ Compiled /_not-found in 15s (879 modules)
+ GET /_next/static/chunks/webpack.js?v=1790092647851 404 in 16948ms
+ GET /_next/static/css/app/layout.css?v=1790092647851 404 in 17086ms
+ GET /_next/static/chunks/main-app.js?v=1790092647851 404 in 14128ms
+ GET /_next/static/chunks/app-pages-internals.js 404 in 110ms
+ GET /_next/static/chunks/app/setup/page.js 404 in 113ms
+ GET /_next/static/css/app/layout.css 404 in 187ms
+ GET /_next/static/css/app/layout.css 404 in 201ms
+[?25h
