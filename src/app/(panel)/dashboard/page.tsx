@@ -10,6 +10,8 @@ import { McHead, StatusBadge, Panel, EmptyState, SkeletonRows } from "@/componen
 interface Me {
   user: { username: string; mcUsername: string | null; headUrl: string | null; role: string };
   csrfToken: string;
+  /** Per-user server power grant: full | start | none. */
+  powerScope?: "full" | "start" | "none";
 }
 
 interface StatusPayload {
@@ -114,7 +116,8 @@ export default function DashboardPage() {
   }, [refreshStatus]);
 
   // Power actions + Falix verification flow live in one hook; a successful
-  // verification-triggered start refreshes status immediately.
+  // verification-triggered start refreshes status immediately. The per-user
+  // power grant decides which buttons exist: 'start' hides Stop/Restart.
   const {
     busySignal,
     error: actionError,
@@ -164,6 +167,7 @@ export default function DashboardPage() {
   const mcOnline = status?.minecraft?.online === true;
   const online = status?.players?.onlinePlayers ?? 0;
   const max = status?.minecraft?.playersMax ?? null;
+  const powerScope = me?.powerScope ?? "full";
 
   function onMouseDown(id: string, mode: "move" | "resize") {
     return (e: React.MouseEvent) => {
@@ -286,7 +290,7 @@ export default function DashboardPage() {
                 ) : null}
               </div>
               <div className="panel-body grow" style={{ overflow: "auto", padding: 14 }}>
-                <WidgetBody id={w.id} {...{ status, players, activity, consoleLines, falixStatus, mcOnline, online, max, serverName, me, busySignal, actionError, power }} />
+                <WidgetBody id={w.id} {...{ status, players, activity, consoleLines, falixStatus, mcOnline, online, max, serverName, me, busySignal, actionError, power, powerScope }} />
               </div>
             </div>
           );
@@ -311,8 +315,12 @@ function WidgetBody(props: {
   busySignal: string | null;
   actionError: string | null;
   power: (s: "start" | "stop" | "restart") => void;
+  /** Per-user server power grant: full | start | none. */
+  powerScope: "full" | "start" | "none";
 }) {
-  const { id, status, players, activity, consoleLines, falixStatus, mcOnline, online, max, serverName, me, busySignal, actionError, power } = props;
+  const { id, status, players, activity, consoleLines, falixStatus, mcOnline, online, max, serverName, me, busySignal, actionError, power, powerScope } = props;
+  const canPower = powerScope !== "none";
+  const canStopRestart = powerScope === "full";
 
   if (id === "server-status") {
     const running = falixStatus === "running";
@@ -341,15 +349,23 @@ function WidgetBody(props: {
     return (
       <div style={{ display: "flex", flexDirection: "column", gap: 10, height: "100%", justifyContent: "center" }}>
         <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-          <button className="btn primary" disabled={running || busySignal !== null} onClick={() => power("start")}>
-            {busySignal === "start" ? <span className="spinner" /> : "▶ Start"}
-          </button>
-          <button className="btn danger" disabled={!running || busySignal !== null} onClick={() => power("stop")}>
-            {busySignal === "stop" ? <span className="spinner" /> : "■ Stop"}
-          </button>
-          <button className="btn" disabled={!running || busySignal !== null} onClick={() => power("restart")}>
-            {busySignal === "restart" ? <span className="spinner" /> : "↻ Restart"}
-          </button>
+          {canPower ? (
+            <>
+              <button className="btn primary" disabled={running || busySignal !== null} onClick={() => power("start")}>
+                {busySignal === "start" ? <span className="spinner" /> : "▶ Start"}
+              </button>
+              {canStopRestart ? (
+                <>
+                  <button className="btn danger" disabled={!running || busySignal !== null} onClick={() => power("stop")}>
+                    {busySignal === "stop" ? <span className="spinner" /> : "■ Stop"}
+                  </button>
+                  <button className="btn" disabled={!running || busySignal !== null} onClick={() => power("restart")}>
+                    {busySignal === "restart" ? <span className="spinner" /> : "↻ Restart"}
+                  </button>
+                </>
+              ) : null}
+            </>
+          ) : null}
         </div>
         {actionError ? <div style={{ fontSize: 12.5, color: "var(--danger)" }}>{actionError}</div> : null}
         {!me || me.user.role !== "admin" ? (

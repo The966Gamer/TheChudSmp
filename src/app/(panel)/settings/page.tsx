@@ -29,6 +29,7 @@ interface UserRow {
   username: string;
   displayName: string;
   role: "player" | "moderator" | "admin";
+  powerScope: "full" | "start" | "none";
   createdAt: string;
 }
 
@@ -181,6 +182,27 @@ export default function SettingsPage() {
       setMsg({ ok: true, text: `Updated ${username} to ${newRole}.` });
     } catch (e) {
       setMsg({ ok: false, text: e instanceof Error ? e.message : "Failed to update role" });
+    } finally {
+      setBusy(null);
+    }
+  }
+
+  async function setUserPowerScope(username: string, scope: UserRow["powerScope"]) {
+    setBusy(`power-${username}`);
+    try {
+      await api.put("/api/permissions", { username, powerScope: scope });
+      setUsers((rows) => rows.map((r) => (r.username === username ? { ...r, powerScope: scope } : r)));
+      setMsg({
+        ok: true,
+        text:
+          scope === "full"
+            ? `${username} can start, stop and restart the server.`
+            : scope === "start"
+              ? `${username} can start the server only.`
+              : `${username} has no server power controls.`,
+      });
+    } catch (e) {
+      setMsg({ ok: false, text: e instanceof Error ? e.message : "Failed to update power permission" });
     } finally {
       setBusy(null);
     }
@@ -528,23 +550,45 @@ export default function SettingsPage() {
           ) : (
             <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
               {users.map((u) => (
-                <div key={u.username} className="spread" style={{ fontSize: 13 }}>
-                  <div className="row">
-                    <span className={`badge ${ROLE_BADGE[u.role] ?? "gray"}`}>{u.role}</span>
-                    <strong>{u.displayName}</strong>
-                    <span className="faint">· {new Date(u.createdAt).toLocaleDateString()}</span>
+                <div key={u.username} style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+                  <div className="spread" style={{ fontSize: 13 }}>
+                    <div className="row">
+                      <span className={`badge ${ROLE_BADGE[u.role] ?? "gray"}`}>{u.role}</span>
+                      <strong>{u.displayName}</strong>
+                      <span className="faint">· {new Date(u.createdAt).toLocaleDateString()}</span>
+                    </div>
+                    <select
+                      className="select"
+                      style={{ width: 140 }}
+                      value={u.role}
+                      disabled={busy !== null || u.role === "admin"}
+                      title={u.role === "admin" ? "Admins always hold full server power" : undefined}
+                      onChange={(e) => setUserRole(u.username, e.target.value)}
+                    >
+                      <option value="player">Player</option>
+                      <option value="moderator">Moderator</option>
+                      <option value="admin">Admin</option>
+                    </select>
                   </div>
-                  <select
-                    className="select"
-                    style={{ width: 140 }}
-                    value={u.role}
-                    disabled={busy !== null}
-                    onChange={(e) => setUserRole(u.username, e.target.value)}
-                  >
-                    <option value="player">Player</option>
-                    <option value="moderator">Moderator</option>
-                    <option value="admin">Admin</option>
-                  </select>
+                  {u.role !== "admin" ? (
+                    <div className="spread" style={{ paddingLeft: 4 }}>
+                      <span className="faint" style={{ fontSize: 12 }}>
+                        Server power
+                        <span className="faint"> · Start only = can start, never stop/restart</span>
+                      </span>
+                      <select
+                        className="select"
+                        style={{ width: 150 }}
+                        value={u.powerScope ?? "full"}
+                        disabled={busy !== null}
+                        onChange={(e) => setUserPowerScope(u.username, e.target.value as UserRow["powerScope"])}
+                      >
+                        <option value="full">Full (start/stop/restart)</option>
+                        <option value="start">Start only</option>
+                        <option value="none">No power controls</option>
+                      </select>
+                    </div>
+                  ) : null}
                 </div>
               ))}
             </div>

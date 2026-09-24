@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requirePermission, requireCsrf, readJson, handleRouteError, clientIp, rateLimit, rateLimitResponse, jsonError } from "@/lib/api";
+import { requireAuth, requireCsrf, readJson, handleRouteError, clientIp, rateLimit, rateLimitResponse, jsonError } from "@/lib/api";
 import { obj, enumOf } from "@/lib/validate";
 import { getConfig } from "@/lib/config";
 import { sendPowerSignal, type FalixPowerSignal } from "@/lib/falix";
@@ -13,7 +13,9 @@ export const dynamic = "force-dynamic";
 
 export async function POST(req: NextRequest) {
   try {
-    const guard = await requirePermission(req, "power_control");
+    // The per-user power scope (not the panel role) is the single authority
+    // here: 'full' = all signals, 'start' = start only, 'none' = nothing.
+    const guard = await requireAuth(req);
     if (!guard.ok) return guard.res;
     const csrf = await requireCsrf(req, guard.ctx);
     if (!csrf.ok) return csrf.res;
@@ -25,8 +27,6 @@ export async function POST(req: NextRequest) {
     const body = obj(await readJson(req));
     const signal = enumOf<FalixPowerSignal>(body, "signal", ["start", "stop", "restart", "kill"]);
 
-    // Per-user power scope: admins hold 'full'; everyone else uses their
-    // stored grant (start-only / none), independent of their panel role.
     const scopeRes = await q<{ power_scope: string }>(
       `select power_scope from users where id = $1 limit 1`,
       [guard.ctx.user.id],

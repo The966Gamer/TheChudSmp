@@ -44,6 +44,8 @@ interface Me {
   csrfToken: string;
   /** Panel sections the admin has enabled; absent = all enabled. */
   features?: string[];
+  /** Per-user server power grant: full | start | none. */
+  powerScope?: "full" | "start" | "none";
 }
 
 interface NotificationRow {

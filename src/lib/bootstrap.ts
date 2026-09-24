@@ -39,8 +39,15 @@ async function run(): Promise<void> {
 
   await ensureDb();
 
+  // Always apply migrations at boot: the DDL is idempotent (IF NOT EXISTS +
+  // a self-heal pass), so existing installs pick up new columns/tables on
+  // restart without going through setup again.
+  await runMigrations(async (sql) => {
+    await q(sql);
+  });
+
   const auto = process.env.AUTO_SETUP === "1" || process.env.AUTO_SETUP?.toLowerCase() === "true";
-  if (!auto) return; // local installs seed through the setup wizard
+  if (!auto) return; // local installs seed the admin through the setup wizard
 
   // Fast guard: cheap query, skips DDL once seeding is done.
   const marker = await q<{ key: string }>(`select key from app_meta where key = 'seed_marker' limit 1`);
