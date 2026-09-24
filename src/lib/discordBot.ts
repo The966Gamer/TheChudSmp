@@ -163,6 +163,14 @@ async function handlePlayers(): Promise<string> {
 // -------------------------------------------------------------- gateway ----
 
 function connectGateway(token: string): void {
+  // Node < 22 has no global WebSocket. Constructing one would throw a
+  // ReferenceError whose unhandled rejection kills the whole process — on
+  // serverless hosts that turns EVERY panel route into a 500. Guard instead.
+  if (typeof WebSocket === "undefined") {
+    running = false;
+    log("global WebSocket unavailable (Node < 22) — Discord bot disabled on this runtime");
+    return;
+  }
   ws = new WebSocket("wss://gateway.discord.gg/?v=10&encoding=json");
 
   ws.onopen = () => {
@@ -181,7 +189,12 @@ function connectGateway(token: string): void {
 
   ws.onmessage = (event) => {
     void (async () => {
-      const p = JSON.parse(String(event.data)) as GatewayPayload;
+      let p: GatewayPayload;
+      try {
+        p = JSON.parse(String(event.data)) as GatewayPayload;
+      } catch {
+        return; // malformed frame — never let it become an unhandled rejection
+      }
       if (p.s != null) lastSequence = p.s;
 
       if (p.op === 10) {
@@ -296,13 +309,19 @@ async function handleInteraction(d: any): Promise<void> {
 /** Start the bot if a token exists. Safe to call repeatedly. */
 export function ensureDiscordBot(): void {
   if (running) return;
+  if (typeof WebSocket === "undefined") return; // Node < 22 — see connectGateway
   void (async () => {
     const token = await getBotToken();
     if (!token) return; // not configured — silent
     running = true;
     connectGateway(token);
     log("starting gateway connection");
-  })();
+  })().catch((e) => {
+    // Boot-time failures (e.g. DB briefly down for the token lookup) must
+    // never surface as unhandled rejections — they crash serverless instances.
+    running = false;
+    log("failed to start:", e instanceof Error ? e.message : e);
+  });
 }
 
 export function isDiscordBotRunning(): boolean {

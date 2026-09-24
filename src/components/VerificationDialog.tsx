@@ -56,8 +56,8 @@ export default function VerificationDialog({
             </button>
           </div>
           <p className="dim" style={{ fontSize: 12.5, margin: "0 0 10px" }}>
-            Falix needs you to prove you&apos;re human before starting a free server. Complete the captcha below — once
-            it&apos;s done, press <strong>Start server</strong> and the server will boot. The link is valid for 5 minutes.
+            Complete the captcha below — <strong>that itself starts the server</strong>. When it succeeds, this window
+            closes automatically as the server boots. The link is valid for 5 minutes.
           </p>
           <div style={{ flex: 1, minHeight: 260, borderRadius: 4, overflow: "hidden", border: "1px solid var(--border-strong)", background: "#fff" }}>
             <iframe
@@ -68,7 +68,8 @@ export default function VerificationDialog({
             />
           </div>
           <div className="faint" style={{ fontSize: 11.5, marginTop: 6 }}>
-            Box stays blank? Falix sometimes blocks embedding — use “Open in new tab ↗”, finish the check there, then come back and press Start server.
+            Box stays blank? Falix sometimes blocks embedding — use “Open in new tab ↗”, finish the check there; the
+            server starts the moment the captcha is solved.
           </div>
           <div className="row" style={{ marginTop: 12, gap: 8, flexWrap: "wrap" }}>
             <button className="btn primary" disabled={busy} onClick={onRetry}>

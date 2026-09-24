@@ -11,7 +11,9 @@
   publish = ".next"
 
 [build.environment]
-  NODE_VERSION = "20"
+  # Node 22 has the global WebSocket the Discord bot gateway needs; Node 20
+  # would force the bot to stay disabled (and pre-guard versions to crash).
+  NODE_VERSION = "22"
 
 # Keep SSE (realtime stream) on functions with a long timeout.
 [[plugins]]
