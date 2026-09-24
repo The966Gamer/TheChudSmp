@@ -16,7 +16,7 @@ export const MIGRATION_SQL = `
 do $$
 declare
   required jsonb := '{
-    "users": ["id", "username", "username_display", "password_hash", "role", "mc_username", "head_url", "head_fetched_at", "must_change_password", "created_at", "updated_at"],
+    "users": ["id", "username", "username_display", "password_hash", "role", "power_scope", "mc_username", "head_url", "head_fetched_at", "must_change_password", "created_at", "updated_at"],
     "sessions": ["id", "user_id", "token_hash", "csrf_token", "created_at", "last_seen_at", "expires_at", "revoked_at", "user_agent", "ip"],
     "players": ["id", "username", "uuid", "head_url", "head_fetched_at", "first_seen", "last_seen", "playtime_seconds", "permission_level", "joins", "deaths", "updated_at"],
     "server_events": ["id", "type", "source", "player_name", "message", "data", "created_at"],
@@ -60,6 +60,9 @@ create table if not exists users (
   username_display text not null,
   password_hash text not null,
   role text not null default 'player' check (role in ('player','moderator','admin')),
+  -- Per-user server power grant, independent of role: 'full' = start/stop/restart,
+  -- 'start' = start only, 'none' = no power actions. Admins always have 'full'.
+  power_scope text not null default 'full' check (power_scope in ('full','start','none')),
   mc_username text,
   head_url text,
   head_fetched_at timestamptz,

@@ -149,7 +149,7 @@ export default function PanelShell({
   const nav = NAV.filter(
     (n) =>
       (!n.roles || n.roles.includes(role)) &&
-      (!enabled || enabled.includes(n.href.slice(1)) || n.href === "/dashboard"),
+      (!enabled || enabled.includes(n.href.slice(1)) || n.href === "/dashboard" || n.href === "/settings"),
   );
   const unread = notifications.filter((n) => !n.read).length;
 

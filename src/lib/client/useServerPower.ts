@@ -12,14 +12,17 @@ export interface Verification {
   signal: PowerSignal;
 }
 
+const STARTING_STATES = new Set(["starting", "running", "booting", "launching", "pending"]);
+
 /**
  * Single owner of server power-action UI state: which signal is in flight,
  * the last error, and the Falix free-plan verification flow (a challenge URL
  * the user must complete before Falix honors a start).
  *
  * Flow: power("start") → 409 with action_url → dialog opens → user solves the
- * captcha → retryVerification() re-sends the same signal → success closes the
- * dialog. A repeated challenge URL replaces the old one (links expire in 5 min).
+ * captcha → Falix auto-starts the server → the status watcher sees the server
+ * leave its stopped state and closes the dialog. If Falix never auto-starts,
+ * the dialog's "Start server" button re-sends the signal as a fallback.
  */
 export function useServerPower(onSuccess?: () => void) {
   const [busySignal, setBusySignal] = React.useState<PowerSignal | null>(null);
@@ -38,6 +41,7 @@ export function useServerPower(onSuccess?: () => void) {
       setError(null);
       try {
         await api.post("/api/server/power", { signal });
+        onSuccess?.();
       } catch (e) {
         // A verification challenge opens the dialog INSTEAD of showing an
         // error — the user's next step is the captcha, not an error message.
@@ -52,7 +56,7 @@ export function useServerPower(onSuccess?: () => void) {
         setBusySignal(null);
       }
     },
-    [],
+    [onSuccess],
   );
 
   const retryVerification = React.useCallback(async () => {
@@ -85,26 +89,42 @@ export function useServerPower(onSuccess?: () => void) {
   }, []);
 
   /**
-   * Falix auto-starts the server once the captcha is solved, so while the
-   * dialog is open we watch server status: the moment the panel sees the
-   * server running/starting, the dialog closes itself — no button press
-   * needed. Status reads go straight to the status API (bypassing the
-   * caller's refresh callback, which may be tied to component lifecycles).
+   * Auto-close watcher. Falix auto-starts the server once the captcha is
+   * solved, so while the dialog is open we watch server status: any signal
+   * that the server is no longer sitting fully stopped closes the dialog —
+   * "starting"/"running" but also "booting"/"launching"/"pending" variants.
+   * As a belt-and-braces escape hatch (status API erroring, unknown string),
+   * a graceful fallback: if the status endpoint consistently errors we close
+   * after 90s so the user is never stuck staring at the captcha.
    */
   React.useEffect(() => {
     if (!verification) return;
     let cancelled = false;
+    let failures = 0;
+    const openedAt = Date.now();
     const check = async () => {
       try {
-        const s = await api.get<{ falix?: { status?: string } }>("/api/status");
+        const s = await api.get<{ falix?: { status?: string }; minecraft?: { online?: boolean } | null }>(
+          "/api/status",
+        );
         if (cancelled) return;
-        const st = s.falix?.status;
-        if (st === "running" || st === "starting") {
+        failures = 0;
+        const st = (s.falix?.status ?? "").toLowerCase();
+        const mcOnline = s.minecraft?.online === true;
+        if (STARTING_STATES.has(st) || mcOnline) {
           setVerification(null);
           onSuccess?.();
+        } else if (Date.now() - openedAt > 90_000 && ++failures >= 3) {
+          // Status has answered but the server is still fully stopped after
+          // 90s — close so the user can act (they can press Start again).
+          setVerification(null);
         }
       } catch {
-        // transient — keep polling
+        // Transient error — keep polling; a persistent failure eventually
+        // triggers the 90s escape hatch above.
+        if (!cancelled && ++failures >= 3 && Date.now() - openedAt > 90_000) {
+          setVerification(null);
+        }
       }
     };
     const t = setInterval(check, 4000);

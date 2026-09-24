@@ -1,10 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requirePermission, requireCsrf, readJson, handleRouteError, clientIp, rateLimit, rateLimitResponse } from "@/lib/api";
+import { requirePermission, requireCsrf, readJson, handleRouteError, clientIp, rateLimit, rateLimitResponse, jsonError } from "@/lib/api";
 import { obj, enumOf } from "@/lib/validate";
 import { getConfig } from "@/lib/config";
 import { sendPowerSignal, type FalixPowerSignal } from "@/lib/falix";
 import { audit } from "@/lib/audit";
 import { insertEvent } from "@/lib/events";
+import { effectivePowerScope, scopeAllows } from "@/lib/power";
+import { q } from "@/lib/db";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -22,6 +24,23 @@ export async function POST(req: NextRequest) {
 
     const body = obj(await readJson(req));
     const signal = enumOf<FalixPowerSignal>(body, "signal", ["start", "stop", "restart", "kill"]);
+
+    // Per-user power scope: admins hold 'full'; everyone else uses their
+    // stored grant (start-only / none), independent of their panel role.
+    const scopeRes = await q<{ power_scope: string }>(
+      `select power_scope from users where id = $1 limit 1`,
+      [guard.ctx.user.id],
+    );
+    const scope = effectivePowerScope(guard.ctx.user.role, scopeRes.rows[0]?.power_scope);
+    if (!scopeAllows(scope, signal)) {
+      return jsonError(
+        403,
+        "power_forbidden",
+        scope === "start" && signal !== "start"
+          ? "Your account may start the server but not stop or restart it"
+          : "Your account has no server power permissions",
+      );
+    }
 
     const config = getConfig();
     const result = await sendPowerSignal(config.FALIX_SERVER_ID, signal);
