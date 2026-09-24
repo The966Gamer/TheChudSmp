@@ -1,4 +1,5 @@
 import { getBotToken, rconSendCommand, rconStatus } from "./rconService";
+import WebSocket from "ws";
 import { q } from "./db";
 import { getRconConfig } from "./rconService";
 import { getConfig } from "./config";
