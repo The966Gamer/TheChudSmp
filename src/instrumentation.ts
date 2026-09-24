@@ -1,5 +1,6 @@
 import { ensureBootstrap } from "@/lib/bootstrap";
 import { ensureDiscordWorker } from "@/lib/discord";
+import { ensureDiscordBot } from "@/lib/discordBot";
 
 /**
  * Next.js instrumentation hook — runs once when the server process boots.
@@ -21,4 +22,6 @@ export async function register(): Promise<void> {
     console.warn("[instrumentation] auto-setup skipped:", e instanceof Error ? e.message : e);
   });
   ensureDiscordWorker();
+  // Discord bot (slash-command server control over RCON) when a token is set.
+  ensureDiscordBot();
 }

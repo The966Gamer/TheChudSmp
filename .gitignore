@@ -17,3 +17,4 @@ prod-server.log
 # temp proof-run artifacts
 .env.production.local
 .panel-config.json.bak
+.admin-credentials.txt

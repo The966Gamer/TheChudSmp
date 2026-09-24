@@ -167,7 +167,9 @@ export default function DashboardPage() {
   const mcOnline = status?.minecraft?.online === true;
   const online = status?.players?.onlinePlayers ?? 0;
   const max = status?.minecraft?.playersMax ?? null;
-  const powerScope = me?.powerScope ?? "full";
+  // Until /me loads we hide power controls (no flash of Stop/Restart for
+  // start-only users); admins see theirs the moment the fetch resolves.
+  const powerScope = me?.powerScope ?? (me ? "full" : "none");
 
   function onMouseDown(id: string, mode: "move" | "resize") {
     return (e: React.MouseEvent) => {

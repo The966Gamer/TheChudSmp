@@ -3,6 +3,7 @@ import { requirePermission, requireCsrf, readJson, handleRouteError, clientIp, r
 import { obj, str } from "@/lib/validate";
 import { getConfig } from "@/lib/config";
 import { sendCommand } from "@/lib/falix";
+import { isRconConfigured, rconSendCommand } from "@/lib/rconService";
 import { audit } from "@/lib/audit";
 
 export const runtime = "nodejs";
@@ -40,9 +41,22 @@ export async function POST(req: NextRequest) {
     }
 
     const config = getConfig();
+
+    // Transport: RCON when configured (direct to the server, full output),
+    // Falix console API as fallback.
+    if (isRconConfigured()) {
+      const rcon = await rconSendCommand(command);
+      if (rcon.ok) {
+        await audit(guard.ctx, "console.command", command.slice(0, 120), { transport: "rcon" }, ip);
+        return NextResponse.json({ ok: true, accepted: true, transport: "rcon", response: rcon.response.slice(0, 1500) });
+      }
+      // RCON failed (server offline or wrong port) — fall through to Falix.
+      await audit(guard.ctx, "console.command.fallback", command.slice(0, 120), { reason: rcon.error }, ip).catch(() => undefined);
+    }
+
     const result = await sendCommand(config.FALIX_SERVER_ID, command);
-    await audit(guard.ctx, "console.command", command.slice(0, 120), { accepted: result.accepted }, ip);
-    return NextResponse.json({ ok: true, accepted: result.accepted });
+    await audit(guard.ctx, "console.command", command.slice(0, 120), { transport: "falix", accepted: result.accepted }, ip);
+    return NextResponse.json({ ok: true, accepted: result.accepted, transport: "falix" });
   } catch (e) {
     return handleRouteError(e);
   }

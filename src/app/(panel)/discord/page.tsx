@@ -12,6 +12,12 @@ interface DiscordConfig {
   recent: { id: number; event_type: string; status: string; error: string | null; created_at: string; sent_at: string | null }[];
 }
 
+interface BotConfig {
+  configured: boolean;
+  maskedToken: string | null;
+  botRunning: boolean;
+}
+
 const EVENT_LABELS: Record<string, string> = {
   player_join: "Player joins",
   player_leave: "Player leaves",
@@ -27,16 +33,47 @@ const EVENT_LABELS: Record<string, string> = {
 
 export default function DiscordPage() {
   const [cfg, setCfg] = React.useState<DiscordConfig | null>(null);
+  const [bot, setBot] = React.useState<BotConfig | null>(null);
   const [webhook, setWebhook] = React.useState("");
+  const [botToken, setBotToken] = React.useState("");
   const [busy, setBusy] = React.useState<string | null>(null);
   const [msg, setMsg] = React.useState<{ ok: boolean; text: string } | null>(null);
   const [error, setError] = React.useState<string | null>(null);
 
   const load = React.useCallback(() => {
     api.get<DiscordConfig>("/api/discord").then(setCfg).catch((e) => setError(e instanceof Error ? e.message : "Failed to load"));
+    api.get<BotConfig>("/api/discord/bot").then(setBot).catch(() => undefined);
   }, []);
 
   React.useEffect(load, [load]);
+
+  async function saveBot() {
+    setBusy("bot");
+    setMsg(null);
+    try {
+      const r = await api.post<{ botRunning: boolean }>("/api/discord/bot", { token: botToken.trim() });
+      setMsg({ ok: true, text: r.botRunning ? "Bot connected — type /status in Discord to try it." : "Token saved — the bot connects at next server start." });
+      setBotToken("");
+      load();
+    } catch (e) {
+      setMsg({ ok: false, text: e instanceof Error ? e.message : "Failed to save bot token" });
+    } finally {
+      setBusy(null);
+    }
+  }
+
+  async function removeBot() {
+    setBusy("bot-remove");
+    try {
+      await api.post("/api/discord/bot", { token: "" });
+      setMsg({ ok: true, text: "Bot token removed — slash commands stop at next server start." });
+      load();
+    } catch (e) {
+      setMsg({ ok: false, text: e instanceof Error ? e.message : "Failed" });
+    } finally {
+      setBusy(null);
+    }
+  }
 
   async function save(events?: string[]) {
     setBusy("save");
@@ -145,6 +182,41 @@ export default function DiscordPage() {
               {msg ? (
                 <div style={{ fontSize: 13, color: msg.ok ? "var(--accent-strong)" : "var(--danger)" }}>{msg.text}</div>
               ) : null}
+            </div>
+          </Panel>
+
+          <Panel title="Bot — control the server from Discord">
+            <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+              <div className="row">
+                <span className={`badge ${bot?.botRunning ? "green" : bot?.configured ? "amber" : "gray"}`}>
+                  {bot?.botRunning ? "Connected" : bot?.configured ? "Saved — connects at boot" : "Not configured"}
+                </span>
+                {bot?.maskedToken ? <code className="mono faint" style={{ fontSize: 12 }}>{bot.maskedToken}</code> : null}
+              </div>
+              <div className="faint" style={{ fontSize: 12 }}>
+                Add a bot (Discord → Developer Portal → New Application → Bot → Reset Token), invite it with the
+                <code className="mono"> applications.commands </code>scope, then paste its token here. Slash commands:
+                <code className="mono"> /status /start /stop /restart /console /graves /players</code> — console runs over RCON.
+              </div>
+              <div className="row" style={{ gap: 8, flexWrap: "wrap" }}>
+                <input
+                  className="input mono"
+                  style={{ flex: 1, minWidth: 240 }}
+                  type="password"
+                  placeholder="Discord bot token (MTA…)"
+                  value={botToken}
+                  onChange={(e) => setBotToken(e.target.value)}
+                  spellCheck={false}
+                />
+                <button className="btn primary" onClick={saveBot} disabled={busy !== null || botToken.trim().length < 20}>
+                  {busy === "bot" ? <span className="spinner" /> : "Save & connect"}
+                </button>
+                {bot?.configured ? (
+                  <button className="btn danger" onClick={removeBot} disabled={busy !== null}>
+                    Remove
+                  </button>
+                ) : null}
+              </div>
             </div>
           </Panel>
 
