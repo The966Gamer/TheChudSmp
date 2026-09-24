@@ -15,8 +15,10 @@ interface DiscordConfig {
 const EVENT_LABELS: Record<string, string> = {
   player_join: "Player joins",
   player_leave: "Player leaves",
-  player_death: "Deaths",
+  player_death: "Deaths (pings the player)",
   grave_created: "Grave creation",
+  grave_expiring: "Grave countdown (pings the player)",
+  chat_message: "In-game chat",
   server_start: "Server started",
   server_stop: "Server stopped",
   server_restart: "Server restarted",

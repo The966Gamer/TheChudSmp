@@ -1,5 +1,7 @@
 "use client";
 
+import { api } from "./api";
+
 /**
  * Desktop notifications — work in a normal browser tab AND natively inside
  * the Electron desktop app (Electron renders web Notifications as real OS
@@ -19,26 +21,12 @@ const FOCUSABLE_WINDOW = window as unknown as {
   electronAPI?: { focusWindow?: () => void };
 };
 
-/**
- * Fire-and-forget POST to an authenticated panel API route. The CSRF token is
- * injected by the api client wrapper on the same origin; fall back to a plain
- * header so this works even before the client module loads.
- */
+/** Fire-and-forget POST to an authenticated panel API route. */
 async function postApi(path: string, body: unknown): Promise<void> {
   try {
-    const csrf =
-      document.cookie
-        .split("; ")
-        .find((c) => c.startsWith("panel_csrf="))
-        ?.split("=")[1] ?? "";
-    await fetch(path, {
-      method: "POST",
-      headers: { "Content-Type": "application/json", "x-csrf-token": csrf },
-      body: JSON.stringify(body),
-      credentials: "same-origin",
-    });
+    await api.post(path, body);
   } catch {
-    // Network hiccup — skip this attempt; the next milestone retries
+    // Auth hiccup or network error — skip this attempt; the next milestone retries
   }
 }
 

@@ -163,6 +163,8 @@ export async function queueDiscordEventQuiet(eventType: string, payload: Record<
  * Queue the panel notification rows for an event type. Every event the mod
  * posts gets a bell row (deaths, graves, crashes, power, joins, leaves and
  * chat) — the per-event visibility matrix is enforced in the delivery layer.
+ * Chat rows are created pre-read so busy in-game chat doesn't spam the
+ * unread badge; they still appear in the feed.
  */
 export async function createNotificationsForEvent(
   ev: IntegrationEventInput,
@@ -171,9 +173,9 @@ export async function createNotificationsForEvent(
   const meta = notificationMetaFor(ev);
   if (!meta) return;
   await q(
-    `insert into notifications (type, title, body, created_at)
-     values ($1, $2, $3, now())`,
-    [meta.type, meta.title.slice(0, 120), meta.body],
+    `insert into notifications (type, title, body, read, created_at)
+     values ($1, $2, $3, $4, now())`,
+    [meta.type, meta.title.slice(0, 120), meta.body, meta.type === "chat"],
   );
 }
 
@@ -192,9 +194,9 @@ export async function createNotificationForType(
   });
   if (!meta) return;
   await q(
-    `insert into notifications (type, title, body, created_at)
-     values ($1, $2, $3, now())`,
-    [meta.type, meta.title.slice(0, 120), meta.body],
+    `insert into notifications (type, title, body, read, created_at)
+     values ($1, $2, $3, $4, now())`,
+    [meta.type, meta.title.slice(0, 120), meta.body, meta.type === "chat"],
   );
 }
 

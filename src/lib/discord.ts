@@ -214,14 +214,10 @@ export async function processDiscordQueue(limit = 10): Promise<{ sent: number; f
 }
 
 async function isEventEnabled(eventType: string): Promise<boolean> {
-  const res = await q<{ value: unknown }>(
-    `select value from app_meta where key = 'discord_enabled_events'`,
-  );
-  const row = res.rows[0];
-  if (!row) return true; // default: all enabled
-  const list = row.value as { events?: string[] };
-  if (!Array.isArray(list?.events) || list.events.length === 0) return true;
-  return list.events.includes(eventType);
+  // Routes through getEnabledEvents() so event types added after a panel was
+  // configured (grave countdown, chat) default to ON instead of being skipped.
+  const enabled = await getEnabledEvents();
+  return enabled.includes(eventType);
 }
 
 export async function setEnabledEvents(events: string[]): Promise<void> {

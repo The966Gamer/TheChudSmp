@@ -7,3 +7,13 @@ out/
 *.tsbuildinfo
 .DS_Store
 npm-debug.log*
+
+# Panel secrets — server-side only, never commit
+.panel-config.json
+netlify-env.txt
+prod-server.log
+*.log
+
+# temp proof-run artifacts
+.env.production.local
+.panel-config.json.bak

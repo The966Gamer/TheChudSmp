@@ -38,18 +38,29 @@ export interface PanelConfigFull {
 
 const CONFIG_FILE = path.join(process.cwd(), ".panel-config.json");
 
+/**
+ * In-memory fallback for hosts with a read-only filesystem (Netlify): values
+ * persisted while the FS is unwritable (e.g. the discovered Supabase pooler
+ * region) stay valid for the lifetime of the instance instead of being lost.
+ */
+let memoryOnly: Record<string, string> = {};
+
 function readFileConfig(): Record<string, string> {
+  const out: Record<string, string> = {};
   try {
     const raw = fs.readFileSync(CONFIG_FILE, "utf8");
     const parsed = JSON.parse(raw) as Record<string, unknown>;
-    const out: Record<string, string> = {};
     for (const [k, v] of Object.entries(parsed)) {
       if (typeof v === "string") out[k] = v;
     }
-    return out;
   } catch {
-    return {};
+    // no config file (or unreadable) — env and memory are the sources
   }
+  // Memory wins: it holds the newest values when the file cannot be written.
+  for (const [k, v] of Object.entries(memoryOnly)) {
+    if (typeof v === "string") out[k] = v;
+  }
+  return out;
 }
 
 /**
@@ -65,6 +76,7 @@ function readFileConfig(): Record<string, string> {
 export function persistConfig(partial: Record<string, string>): void {
   const merged = { ...readFileConfig(), ...partial };
   cached = null;
+  memoryOnly = merged; // newest values survive even when the write fails
   try {
     fs.writeFileSync(CONFIG_FILE, JSON.stringify(merged, null, 2), { encoding: "utf8", mode: 0o600 });
   } catch (e) {
