@@ -34,6 +34,8 @@ export interface PanelConfigFull {
   RCON_PASSWORD: string;
   INTEGRATION_SECRET_KEY: string;
   DISCORD_WEBHOOK_URL: string;
+  /** Shared secret for the standalone Discord bot service (optional deploy). */
+  BOT_SERVICE_KEY: string;
 }
 
 const CONFIG_FILE = path.join(process.cwd(), ".panel-config.json");
@@ -133,6 +135,7 @@ export function getConfig(): PanelConfigFull {
     RCON_PASSWORD: get("RCON_PASSWORD"),
     INTEGRATION_SECRET_KEY: get("INTEGRATION_SECRET_KEY"),
     DISCORD_WEBHOOK_URL: get("DISCORD_WEBHOOK_URL"),
+    BOT_SERVICE_KEY: get("BOT_SERVICE_KEY"),
   } as PanelConfigFull;
   return cached;
 }

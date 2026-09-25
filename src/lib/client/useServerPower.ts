@@ -14,6 +14,9 @@ export interface Verification {
 
 const STARTING_STATES = new Set(["starting", "running", "booting", "launching", "pending"]);
 
+/** Falix verification links stay valid ~5 minutes — mirror that exactly. */
+const LINK_TTL_MS = 5 * 60_000;
+
 /**
  * Single owner of server power-action UI state: which signal is in flight,
  * the last error, and the Falix free-plan verification flow (a challenge URL
@@ -89,18 +92,22 @@ export function useServerPower(onSuccess?: () => void) {
   }, []);
 
   /**
-   * Auto-close watcher. Falix auto-starts the server once the captcha is
-   * solved, so while the dialog is open we watch server status: any signal
-   * that the server is no longer sitting fully stopped closes the dialog —
-   * "starting"/"running" but also "booting"/"launching"/"pending" variants.
-   * As a belt-and-braces escape hatch (status API erroring, unknown string),
-   * a graceful fallback: if the status endpoint consistently errors we close
-   * after 90s so the user is never stuck staring at the captcha.
+   * Auto-close watcher. Falix auto-starts the server the moment the captcha
+   * is solved, so while the dialog is open we watch server status: any signal
+   * that the server left its stopped state closes the dialog —
+   * "starting"/"running" but also "booting"/"launching"/"pending" variants
+   * or a live Minecraft query.
+   *
+   * Crucially, "status says offline" is NOT a failure — it just means the
+   * user is still solving the captcha. The dialog must stay open for as long
+   * as they need (the challenge link itself is valid ~5 minutes). It closes
+   * quietly only when the link window lapses or the status endpoint is
+   * unusable — never mid-captcha because a timer got impatient.
    */
   React.useEffect(() => {
     if (!verification) return;
     let cancelled = false;
-    let failures = 0;
+    let errors = 0;
     const openedAt = Date.now();
     const check = async () => {
       try {
@@ -108,23 +115,22 @@ export function useServerPower(onSuccess?: () => void) {
           "/api/status",
         );
         if (cancelled) return;
-        failures = 0;
+        errors = 0;
         const st = (s.falix?.status ?? "").toLowerCase();
         const mcOnline = s.minecraft?.online === true;
         if (STARTING_STATES.has(st) || mcOnline) {
           setVerification(null);
           onSuccess?.();
-        } else if (Date.now() - openedAt > 90_000 && ++failures >= 3) {
-          // Status has answered but the server is still fully stopped after
-          // 90s — close so the user can act (they can press Start again).
-          setVerification(null);
+          return;
         }
       } catch {
-        // Transient error — keep polling; a persistent failure eventually
-        // triggers the 90s escape hatch above.
-        if (!cancelled && ++failures >= 3 && Date.now() - openedAt > 90_000) {
-          setVerification(null);
-        }
+        if (!cancelled) errors++;
+      }
+      if (cancelled) return;
+      // Quiet exits: status API unusable for 3 consecutive polls, or the
+      // Falix link's 5-minute validity has lapsed with no start observed.
+      if (errors >= 3 || Date.now() - openedAt > LINK_TTL_MS) {
+        setVerification(null);
       }
     };
     const t = setInterval(check, 4000);

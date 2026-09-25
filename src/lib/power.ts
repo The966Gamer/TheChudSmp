@@ -16,15 +16,16 @@ export function isPowerScope(v: unknown): v is PowerScope {
 }
 
 /**
- * Effective scope. Admins always hold 'full'. Rows saved before the
- * power_scope column existed get their legacy role behavior: moderators could
- * use power actions (power_control), players could not — so moderator→full,
- * player→none. New grants are set explicitly in Settings.
+ * Effective scope. Admins ALWAYS hold 'full' — that is decided by the role
+ * from the database session, never by username and never overridable by a
+ * stored column. Everyone else: exactly what an admin granted them. Users
+ * created before the power_scope column existed default to 'start' (they may
+ * start the server, never stop or restart — the product default).
  */
 export function effectivePowerScope(role: Role, stored: string | null | undefined): PowerScope {
   if (role === "admin") return "full";
   if (isPowerScope(stored)) return stored;
-  return role === "moderator" ? "full" : "none";
+  return "start";
 }
 
 /** Whether `scope` allows this specific power signal. */

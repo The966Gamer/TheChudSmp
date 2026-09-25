@@ -89,6 +89,37 @@ public final class PanelClient {
         queue.add(ev);
     }
 
+    /**
+     * Synchronous call to the panel's /api/integration/panel-command backend
+     * for /panel subcommands. Returns the panel's reply lines, or null when
+     * the panel is unreachable / not configured (caller shows a fallback).
+     */
+    public java.util.List<String> panelCommand(String player, String command) {
+        if (config.panelUrl().isBlank() || config.integrationSecret().isBlank()) return null;
+        try {
+            JsonObject body = new JsonObject();
+            body.addProperty("player", player);
+            body.addProperty("command", command);
+            HttpRequest req = HttpRequest.newBuilder()
+                .uri(URI.create(config.panelUrl() + "/api/integration/panel-command"))
+                .timeout(TIMEOUT)
+                .header("Content-Type", "application/json")
+                .header("X-Integration-Key", config.integrationSecret())
+                .POST(HttpRequest.BodyPublishers.ofString(GSON.toJson(body)))
+                .build();
+            HttpResponse<String> resp = http.send(req, HttpResponse.BodyHandlers.ofString());
+            if (resp.statusCode() / 100 != 2) return null;
+            JsonObject root = GSON.fromJson(resp.body(), JsonObject.class);
+            if (root == null || !root.has("lines")) return null;
+            java.util.List<String> out = new ArrayList<>();
+            for (var el : root.getAsJsonArray("lines")) out.add(el.getAsString());
+            return out;
+        } catch (Exception e) {
+            com.falix.panel.FalixPanelMod.LOGGER.warn("panel command '{}' failed: {}", command, e.toString());
+            return null;
+        }
+    }
+
     public void sendServerEvent(String type, String message) {
         sendEvent(type, null, message, null);
     }

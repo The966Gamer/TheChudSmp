@@ -1,0 +1,13 @@
+{
+  "name": "falix-panel-discord-bot",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Standalone Discord bot for the Falix Control Panel — slash commands over the panel's /api/bot with real permission enforcement.",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js"
+  },
+  "dependencies": {
+    "ws": "^8.18.0"
+  }
+}

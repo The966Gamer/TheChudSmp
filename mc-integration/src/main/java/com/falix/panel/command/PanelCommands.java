@@ -29,9 +29,9 @@ public final class PanelCommands {
         root.then(literal("help").executes(ctx -> {
             ctx.getSource().sendFeedback(() -> Text.literal(
                 """
-                /panel status          — server status
+                /panel status          — server TPS + panel link health
                 /panel graves          — your active graves
-                /panel chat            — chat relay is always on; use the web panel to read it
+                /panel whoami          — your panel account + permissions
                 /panel notifications   — recent panel notifications
                 /panel server restart  — admins: restart via the panel
                 """), false);
@@ -43,17 +43,6 @@ public final class PanelCommands {
                 "Falix Panel linked. Try /panel help"), false);
             return 1;
         });
-
-        root.then(literal("status").executes(ctx -> {
-            var server = ctx.getSource().getServer();
-            long mspt = Math.round(server.getAverageNanosPerTick() / 1_000_000.0);
-            ctx.getSource().sendFeedback(() -> Text.literal(
-                String.format("TPS: %.1f | MSPT: %d | Players: %d/%d | Uptime: %d min",
-                    Math.min(20.0, 1000.0 / Math.max(1, mspt)), mspt,
-                    server.getCurrentPlayerCount(), server.getMaxPlayerCount(),
-                    (int) (server.getTicks() / 20 / 60))), false);
-            return 1;
-        }));
 
         root.then(literal("graves").executes(ctx -> {
             var player = ctx.getSource().getPlayer();
@@ -71,15 +60,49 @@ public final class PanelCommands {
             return 1;
         }));
 
-        root.then(literal("chat").executes(ctx -> {
-            ctx.getSource().sendFeedback(() -> Text.literal(
-                "Chat relay is active — read it in the web panel's Chat tab."), false);
+        root.then(literal("whoami").executes(ctx -> {
+            var player = ctx.getSource().getPlayer();
+            String name = player != null ? player.getGameProfile().getName() : ctx.getSource().getName();
+            var lines = panel.panelCommand(name == null ? "console" : name, "whoami");
+            if (lines == null) {
+                ctx.getSource().sendFeedback(() -> Text.literal("Panel unreachable — is it online and is the integration key set?"), false);
+            } else {
+                for (String line : lines) {
+                    ctx.getSource().sendFeedback(() -> Text.literal(line), false);
+                }
+            }
             return 1;
         }));
 
         root.then(literal("notifications").executes(ctx -> {
+            var player = ctx.getSource().getPlayer();
+            String name = player != null ? player.getGameProfile().getName() : ctx.getSource().getName();
+            var lines = panel.panelCommand(name == null ? "console" : name, "notifications");
+            if (lines == null) {
+                ctx.getSource().sendFeedback(() -> Text.literal("Panel unreachable — is it online and is the integration key set?"), false);
+            } else {
+                for (String line : lines) {
+                    ctx.getSource().sendFeedback(() -> Text.literal(line), false);
+                }
+            }
+            return 1;
+        }));
+
+        root.then(literal("status").executes(ctx -> {
+            var server = ctx.getSource().getServer();
+            long mspt = Math.round(server.getAverageNanosPerTick() / 1_000_000.0);
             ctx.getSource().sendFeedback(() -> Text.literal(
-                "Panel notifications live in the web panel (bell icon)."), false);
+                String.format("TPS: %.1f | MSPT: %d | Players: %d/%d | Uptime: %d min",
+                    Math.min(20.0, 1000.0 / Math.max(1, mspt)), mspt,
+                    server.getCurrentPlayerCount(), server.getMaxPlayerCount(),
+                    (int) (server.getTicks() / 20 / 60))), false);
+            var panelLines = panel.panelCommand(
+                ctx.getSource().getName() == null ? "console" : ctx.getSource().getName(), "status");
+            if (panelLines != null) {
+                for (String line : panelLines) {
+                    ctx.getSource().sendFeedback(() -> Text.literal(line), false);
+                }
+            }
             return 1;
         }));
 
@@ -87,12 +110,15 @@ public final class PanelCommands {
         var serverAdmin = literal("server")
             .requires(src -> src.hasPermissionLevel(3));
         serverAdmin.then(literal("restart").executes(ctx -> {
-            panel.sendServerEvent("server_restart", "Restart requested in-game by " +
-                (ctx.getSource().getName() == null ? "console" : ctx.getSource().getName()));
-            panel.flush();
-            ctx.getSource().getServer().getCommandManager().executeWithPrefix(
-                ctx.getSource().getServer().getCommandSource(),
-                "restart");
+            String name = ctx.getSource().getName();
+            var lines = panel.panelCommand(name == null ? "console" : name, "restart");
+            if (lines == null) {
+                ctx.getSource().sendFeedback(() -> Text.literal("Panel unreachable — restart was NOT executed."), false);
+            } else {
+                for (String line : lines) {
+                    ctx.getSource().sendFeedback(() -> Text.literal(line), false);
+                }
+            }
             return 1;
         }));
         root.then(serverAdmin);
