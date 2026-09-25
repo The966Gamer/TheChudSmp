@@ -1,4 +1,5 @@
 import { getBotToken, rconSendCommand, rconStatus } from "./rconService";
+
 import { q } from "./db";
 import { getRconConfig } from "./rconService";
 import { getConfig } from "./config";
@@ -89,10 +90,20 @@ const COMMANDS: CommandSpec[] = [
   { name: "players", description: "List online players" },
 ];
 
+let commandsRegistered = false;
+
 async function registerCommands(): Promise<void> {
-  if (!registeredApplicationId) return;
-  await rest("PUT", `/applications/${registeredApplicationId}/commands`, COMMANDS);
-  log("slash commands registered:", COMMANDS.map((c) => `/${c.name}`).join(" "));
+  // Register once per process: re-PUTting on every gateway reconnect (Discord
+  // recycles sessions aggressively) hammers the commands endpoint and 429s.
+  if (!registeredApplicationId || commandsRegistered) return;
+  commandsRegistered = true; // set before the call so failures can't loop-storm
+  try {
+    await rest("PUT", `/applications/${registeredApplicationId}/commands`, COMMANDS);
+    log("slash commands registered:", COMMANDS.map((c) => `/${c.name}`).join(" "));
+  } catch (e) {
+    commandsRegistered = false; // retry on a later READY, with reconnect backoff
+    throw e;
+  }
 }
 
 // ------------------------------------------------------------ handlers ----
