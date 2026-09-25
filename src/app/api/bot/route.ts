@@ -5,7 +5,7 @@ import { jsonError, clientIp, rateLimit, rateLimitResponse } from "@/lib/api";
 import { getConfig } from "@/lib/config";
 import { q } from "@/lib/db";
 import { audit } from "@/lib/audit";
-import { sendPowerSignal, type FalixPowerSignal } from "@/lib/falix";
+import { sendPowerSignal, FalixError, type FalixPowerSignal } from "@/lib/falix";
 import { rconSendCommand, rconStatus } from "@/lib/rconService";
 import { insertEvent } from "@/lib/events";
 import { getDiscordNameMapping } from "@/lib/discord";
@@ -81,13 +81,25 @@ async function authenticateBot(req: NextRequest, body: Record<string, unknown>):
     return jsonError(401, "unauthorized", "Invalid or missing bot service key");
   }
 
-  const discordId = str(body, "discordId", { max: 25 });
+  const discordIdRaw = str(body, "discordId", { max: 25 });
+  // Discord user IDs are 15-20 digits. Anything else cannot be a real actor —
+  // rejecting early also prevents crafted short IDs from substring-matching
+  // another user's mapping below.
+  if (!/^\d{15,20}$/.test(discordIdRaw)) {
+    return jsonError(400, "bad_request", "discordId must be a raw Discord user ID (15-20 digits)");
+  }
+  const discordId = discordIdRaw;
   const rl = rateLimit(`bot:${discordId}`, 30, 60_000);
   if (!rl.ok) return rateLimitResponse(rl.retryAfter);
 
   // Resolve the Discord actor through the panel's own Discord-name mapping.
+  // Values may be <@id>, <@!id> or raw ids — extract the numeric id and
+  // compare EXACTLY (never substring: ids share digit substrings).
   const mapping = await getDiscordNameMapping();
-  const mappedMc = Object.entries(mapping).find(([, mention]) => mention.includes(discordId))?.[0];
+  const mappedMc = Object.entries(mapping).find(([, mention]) => {
+    const m = mention.match(/(\d{15,21})/);
+    return m ? m[1] === discordId : false;
+  })?.[0];
   if (!mappedMc) return surrogate(discordId);
 
   const r = await q<{ username: string; username_display: string; role: string; power_scope: string | null }>(
@@ -221,6 +233,12 @@ export async function POST(req: NextRequest) {
         return jsonError(400, "bad_request", `Unknown action: ${action}`);
     }
   } catch (e) {
+    // Upstream Falix errors (verification challenge, conflicts, rate limits)
+    // keep their real status/code — a captcha demand must reach the bot as
+    // such, not as a generic 500.
+    if (e instanceof FalixError) {
+      return jsonError(e.status, e.code, e.message, { actionUrl: e.actionUrl });
+    }
     console.error("[api/bot] error:", e instanceof Error ? e.message : e);
     return jsonError(500, "internal", "Bot action failed");
   }
